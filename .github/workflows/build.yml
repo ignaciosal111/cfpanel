@@ -1,0 +1,38 @@
+name: build-mod-apk
+on:
+  workflow_dispatch:
+    inputs:
+      base_apk_url:
+        description: "URL directa del APK original"
+        required: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zipalign apksigner wget unzip curl
+          curl -sL https://github.com/iBotPeaches/Apktool/releases/download/v2.10.0/apktool_2.10.0.jar -o /opt/apktool.jar
+          printf '#!/bin/bash\nexec java -jar /opt/apktool.jar "$@"\n' | sudo tee /usr/local/bin/apktool >/dev/null
+          sudo chmod +x /usr/local/bin/apktool
+          curl -sL https://github.com/google/smali/releases/download/v3.0.9/smali-3.0.9.jar -o /opt/smali.jar
+          curl -sL https://github.com/google/smali/releases/download/v3.0.9/baksmali-3.0.9.jar -o /opt/baksmali.jar
+      - name: SDK
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platforms;android-34" >/dev/null
+      - name: NDK
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+          unzip -q android-ndk-r26d-linux.zip
+          echo "NDK=$PWD/android-ndk-r26d" >> $GITHUB_ENV
+      - name: APK base
+        run: wget -q "${{ inputs.base_apk_url }}" -O base.apk && ls -la base.apk
+      - name: Compilar
+        run: chmod +x build.sh && ./build.sh base.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CounterFlame-Panel
+          path: out/CounterFlame-Panel.apk
