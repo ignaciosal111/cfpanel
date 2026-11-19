@@ -29,7 +29,23 @@ jobs:
           unzip -q android-ndk-r26d-linux.zip
           echo "NDK=$PWD/android-ndk-r26d" >> $GITHUB_ENV
       - name: APK base
-        run: wget -q "${{ inputs.base_apk_url }}" -O base.apk && ls -la base.apk
+        run: |
+          UA="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+          URLS=(
+            "${{ inputs.base_apk_url }}"
+            "https://d.apkpure.net/b/APK/com.ScarletWork.CounterFlame?version=latest"
+            "https://apkpure.com/counterflame/com.ScarletWork.CounterFlame/download/apk"
+          )
+          ok=0
+          for u in "${URLS[@]}"; do
+            echo "== probando $u"
+            curl -sL -A "$UA" --retry 2 --max-time 240 -e "https://apkpure.com/" "$u" -o base.apk || continue
+            if unzip -l base.apk 2>/dev/null | grep -q AndroidManifest.xml; then
+              echo "== descarga correcta"; ls -la base.apk; ok=1; break
+            fi
+            echo "-- no es un apk valido"
+          done
+          [ $ok -eq 1 ] || { echo "TODAS LAS FUENTES FALLARON"; exit 1; }
       - name: Compilar
         run: chmod +x build.sh && ./build.sh base.apk
       - uses: actions/upload-artifact@v4
