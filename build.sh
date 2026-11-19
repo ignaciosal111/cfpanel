@@ -242,18 +242,20 @@ EOF
 BT=$ANDROID_HOME/build-tools/34.0.0
 javac -source 8 -target 8 -nowarn -cp "$ANDROID_HOME/platforms/android-34/android.jar" -d build javasrc/com/cfpanel/Panel.java
 $BT/d8 --lib "$ANDROID_HOME/platforms/android-34/android.jar" --output build build/com/cfpanel/Panel.class
-java -jar /opt/baksmali.jar d build/classes.dex -o build/sm
 
 curl -sL https://github.com/ocornut/imgui/archive/refs/tags/v1.90.9.tar.gz | tar xz
 cp imgui-1.90.9/imgui.cpp imgui-1.90.9/imgui_draw.cpp imgui-1.90.9/imgui_tables.cpp imgui-1.90.9/imgui_widgets.cpp imgui-1.90.9/imgui.h imgui-1.90.9/imgui_internal.h imgui-1.90.9/imstb_*.h imgui-1.90.9/imconfig.h modmenu/jni/
 cp imgui-1.90.9/backends/imgui_impl_opengl3.* imgui-1.90.9/backends/imgui_impl_opengl3_loader.h imgui-1.90.9/backends/imgui_impl_android.* modmenu/jni/
 
 apktool d -f -o work "$BASE"
-mkdir -p work/smali/com/cfpanel && cp build/sm/com/cfpanel/*.smali work/smali/com/cfpanel/
 pushd modmenu/jni >/dev/null && "$NDK/ndk-build" NDK_PROJECT_PATH=.. -j8 && popd >/dev/null
 mkdir -p work/lib/arm64-v8a && cp modmenu/libs/arm64-v8a/libmodmenu.so work/lib/arm64-v8a/
 python3 patch_smali.py work
 apktool b work -o "$OUT/u.apk"
+
+mv build/classes.dex build/classes2.dex
+pushd build >/dev/null && zip -q "$OLDPWD/$OUT/u.apk" classes2.dex && popd >/dev/null
+
 zipalign -p -f 4 "$OUT/u.apk" "$OUT/a.apk"
 keytool -genkeypair -keystore "$OUT/k.jks" -alias m -keyalg RSA -keysize 2048 -validity 9999 -storepass modpass -keypass modpass -dname "CN=m" 2>/dev/null
 apksigner sign --ks "$OUT/k.jks" --ks-pass pass:modpass --key-pass pass:modpass --out "$OUT/CounterFlame-Panel.apk" "$OUT/a.apk"
